@@ -1,5 +1,24 @@
+import re
+
 import pandas as pd
 import unidecode
+
+_MESES_PT = {
+    "jan": "01", "fev": "02", "mar": "03", "abr": "04",
+    "mai": "05", "jun": "06", "jul": "07", "ago": "08",
+    "set": "09", "out": "10", "nov": "11", "dez": "12",
+}
+_MESES_RE = re.compile(r"(\d{1,2})\s+(" + "|".join(_MESES_PT) + r")\s+(\d{4})", re.IGNORECASE)
+
+
+def _parse_data_pt(valor):
+    if pd.isna(valor):
+        return pd.NaT
+    m = _MESES_RE.search(str(valor))
+    if m:
+        dia, mes, ano = m.group(1), _MESES_PT[m.group(2).lower()], m.group(3)
+        return pd.Timestamp(f"{ano}-{mes}-{dia.zfill(2)}")
+    return pd.to_datetime(valor, errors="coerce")
 
 
 class OwnersTransform:
@@ -94,6 +113,11 @@ class ReservationsTransform:
             ]
 
         df = df.reset_index(drop=True)
+
+        _COLUNAS_DATA = ["chegada", "data de checkout", "data de criacao", "data do repasse"]
+        for col in _COLUNAS_DATA:
+            if col in df.columns:
+                df[col] = df[col].apply(_parse_data_pt)
 
         df.columns = [col.replace(" ", "_").replace(":", "") for col in df.columns]
 
