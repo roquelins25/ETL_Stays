@@ -46,7 +46,7 @@ with DAG(
     dag_id="lenon_owners",
     default_args=_DEFAULT_ARGS,
     description="Carga full de owners — UPSERT por listing_id, a cada 4 horas",
-    schedule="0 */4 * * *",
+    schedule="0 5 * * *",
     start_date=datetime(2024, 1, 1),
     catchup=False,
     tags=["lenon", "owners", "dimensao"],
