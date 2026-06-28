@@ -55,12 +55,50 @@ def _load_reservations(connection, df: pd.DataFrame, table: str, date_column: st
     )
 
 
+def _upsert_owners(connection, df: pd.DataFrame, table: str) -> None:
+    cols = df.columns.tolist()
+    cols_str = ", ".join(cols)
+    tmp = f"tmp_{table}"
+
+    update_cols = [c for c in cols if c != "listing_id"]
+    update_set = ", ".join(f"{c} = EXCLUDED.{c}" for c in update_cols)
+
+    copy_sql = f"COPY {tmp} ({cols_str}) FROM STDIN WITH (FORMAT CSV, NULL '')"
+    upsert_sql = f"""
+        INSERT INTO {table} ({cols_str})
+        SELECT {cols_str} FROM {tmp}
+        ON CONFLICT (listing_id) DO UPDATE SET {update_set}
+    """
+
+    with connection.cursor() as cur:
+        cur.execute(f"CREATE TEMP TABLE {tmp} (LIKE {table} INCLUDING DEFAULTS) ON COMMIT DROP")
+        cur.copy_expert(copy_sql, _copy_to_buffer(df))
+        cur.execute(upsert_sql)
+
+    connection.commit()
+    logger.info("%s: %d registros upserted", table, len(df))
+
+
 def process_reservations(df: pd.DataFrame, date_column: str = "data_de_criacao") -> None:
     table = "reservations"
     connection = connect_db()
     try:
         create_table_if_not_exists(connection, table)
         _load_reservations(connection, df, table, date_column)
+    except Exception:
+        connection.rollback()
+        logger.exception("Falha ao processar %s", table)
+        raise
+    finally:
+        connection.close()
+
+
+def process_owners(df: pd.DataFrame) -> None:
+    table = "owners"
+    connection = connect_db()
+    try:
+        create_table_if_not_exists(connection, table)
+        _upsert_owners(connection, df, table)
     except Exception:
         connection.rollback()
         logger.exception("Falha ao processar %s", table)
