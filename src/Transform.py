@@ -24,11 +24,11 @@ class OwnersTransform:
         )
 
         final_df.columns = [
-            "owner_id",
-            "owner_name",
-            "listing_id",
-            "listing_code",
-            "listing_internal_name"
+            'owner_id',
+            'owner_name',
+            'listing_id',
+            'listing_code',
+            'listing_internal_name'
         ]
 
         return final_df
