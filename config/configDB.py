@@ -6,11 +6,11 @@ from psycopg2 import Error
 load_dotenv()
 
 def conn():
-    senha = os.getenv('DB_PASSWORD')
-    user = os.getenv('DB_USER')
-    host = os.getenv('DB_HOST')
-    port = os.getenv('DB_PORT')
-    database = os.getenv('DB_NAME')
+    senha = os.getenv('LENON_DB_PASSWORD')
+    user = os.getenv('LENON_DB_USER')
+    host = os.getenv('LENON_DB_HOST')
+    port = os.getenv('LENON_DB_PORT')
+    database = os.getenv('LENON_DB_NAME')
     try:
         connection = pg.connect(
             user=user,
