@@ -15,8 +15,6 @@ from src.extract import StaysExtract
 from src.Transform import ReservationsTransform
 from src.load import process_reservations
 
-_JANELA_DIAS = 90
-
 _DEFAULT_ARGS = {
     "owner": "lenon",
     "depends_on_past": False,
@@ -29,7 +27,7 @@ _DEFAULT_ARGS = {
 
 def _run_reservations_incremental() -> None:
     hoje = date.today()
-    data_inicial = (hoje - timedelta(days=_JANELA_DIAS)).strftime("%Y-%m-%d")
+    data_inicial = hoje.replace(day=1).strftime("%Y-%m-%d")
     data_final = hoje.strftime("%Y-%m-%d")
 
     conn = StaysConnection()
@@ -47,7 +45,7 @@ def _run_reservations_incremental() -> None:
 with DAG(
     dag_id="lenon_reservations_incremental",
     default_args=_DEFAULT_ARGS,
-    description="Carga incremental de reservations — últimos 90 dias por data de criação, a cada 2 horas",
+    description="Carga incremental de reservations — mês corrente (dia 1 até hoje) por data de criação, a cada 2 horas",
     schedule="0 */2 * * *",
     start_date=datetime(2024, 1, 1),
     catchup=False,
@@ -55,6 +53,6 @@ with DAG(
 ) as dag:
 
     PythonOperator(
-        task_id="reservations_ultimos_90_dias",
+        task_id="reservations_mes_corrente",
         python_callable=_run_reservations_incremental,
     )
