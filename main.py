@@ -1,3 +1,4 @@
+# %%
 import logging
 import time
 from datetime import date, timedelta
@@ -31,7 +32,7 @@ def run_owners(data_inicial: str, data_final: str) -> None:
     logger.info("Carregando %d registros em owners", len(df))
     process_owners(df)
 
-
+# %%
 def run_reservations(data_inicial: str, data_final: str, date_type: str = "creation") -> None:
     conn = StaysConnection()
     extractor = StaysExtract(conn)
@@ -49,7 +50,7 @@ def run_reservations(data_inicial: str, data_final: str, date_type: str = "creat
     logger.info("Carregando %d registros em reservations", len(df))
     process_reservations(df, date_column="data_de_criacao")
 
-
+# %%
 def main():
     inicio = time.perf_counter()
 
@@ -76,6 +77,6 @@ def main():
 
     logger.info("Pipeline concluído em %.1fs", time.perf_counter() - inicio)
 
-
+# %%
 if __name__ == "__main__":
     main()
