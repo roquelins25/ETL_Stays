@@ -1,3 +1,4 @@
+import logging
 import sys
 import time
 from pathlib import Path
@@ -18,6 +19,8 @@ from config.configDB import conn as connect_db
 from src.extract import StaysExtract
 from src.Transform import FinanceTransform
 from src.load import process_finance_incremental
+
+logger = logging.getLogger(__name__)
 
 _RATE_LIMIT_SLEEP = 5
 
@@ -51,18 +54,25 @@ def _run_finance_incremental() -> None:
     transformer = FinanceTransform()
 
     owner_ids = _get_owner_ids()
+    total_owners = len(owner_ids)
+    logger.info("[%s -> %s] %d owners a processar", data_inicial, data_final, total_owners)
 
     dfs_mes = []
-    for owner_id in owner_ids:
+    for i, owner_id in enumerate(owner_ids, start=1):
         raw = extractor.extract_finance(data_inicial, data_final, owner_id)
         df = transformer.transform_finance(raw)
 
-        if not df.empty:
+        if df.empty:
+            logger.info("[%s -> %s] (%d/%d) owner_id=%s sem dados — ignorado", data_inicial, data_final, i, total_owners, owner_id)
+        else:
+            logger.info("[%s -> %s] (%d/%d) owner_id=%s: %d registros", data_inicial, data_final, i, total_owners, owner_id, len(df))
             dfs_mes.append(df)
 
         time.sleep(_RATE_LIMIT_SLEEP)
 
     df_mes = pd.concat(dfs_mes, ignore_index=True) if dfs_mes else pd.DataFrame()
+
+    logger.info("[%s -> %s] carregando %d registros de %d owners (apagando mês corrente antes)", data_inicial, data_final, len(df_mes), len(dfs_mes))
 
     # Apaga todos os proprietários do mês corrente e recarrega do zero,
     # mesmo que a API não tenha retornado nada para nenhum owner.

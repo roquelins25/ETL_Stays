@@ -1,3 +1,4 @@
+import logging
 import sys
 import time
 from pathlib import Path
@@ -19,6 +20,8 @@ from config.configDB import conn as connect_db
 from src.extract import StaysExtract
 from src.Transform import FinanceTransform
 from src.load import process_finance
+
+logger = logging.getLogger(__name__)
 
 _HISTORICO_INICIO = date(2025, 5, 1)
 _HISTORICO_FIM = date(2026, 7, 31)
@@ -50,21 +53,29 @@ def _run_finance_mes(data_inicial: str, data_final: str) -> None:
     transformer = FinanceTransform()
 
     owner_ids = _get_owner_ids()
+    total_owners = len(owner_ids)
+    logger.info("[%s -> %s] %d owners a processar", data_inicial, data_final, total_owners)
 
     dfs_mes = []
-    for owner_id in owner_ids:
+    for i, owner_id in enumerate(owner_ids, start=1):
         raw = extractor.extract_finance(data_inicial, data_final, owner_id)
         df = transformer.transform_finance(raw)
 
-        if not df.empty:
+        if df.empty:
+            logger.info("[%s -> %s] (%d/%d) owner_id=%s sem dados — ignorado", data_inicial, data_final, i, total_owners, owner_id)
+        else:
+            logger.info("[%s -> %s] (%d/%d) owner_id=%s: %d registros", data_inicial, data_final, i, total_owners, owner_id, len(df))
             dfs_mes.append(df)
 
         time.sleep(_RATE_LIMIT_SLEEP)
 
     if not dfs_mes:
+        logger.warning("[%s -> %s] nenhum owner com dados — nada a carregar", data_inicial, data_final)
         return
 
-    process_finance(pd.concat(dfs_mes, ignore_index=True))
+    df_final = pd.concat(dfs_mes, ignore_index=True)
+    logger.info("[%s -> %s] carregando %d registros de %d owners", data_inicial, data_final, len(df_final), len(dfs_mes))
+    process_finance(df_final)
 
 
 def _gerar_meses(inicio: date, fim: date):
