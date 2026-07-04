@@ -1,0 +1,102 @@
+import sys
+import time
+from pathlib import Path
+from datetime import datetime, timedelta, date
+import calendar
+
+import pandas as pd
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
+sys.path.insert(0, str(PROJECT_ROOT / "config"))
+
+from airflow import DAG
+from airflow.operators.python import PythonOperator
+
+from config.apiconect import StaysConnection
+from config.configDB import conn as connect_db
+from src.extract import StaysExtract
+from src.Transform import FinanceTransform
+from src.load import process_finance
+
+_HISTORICO_INICIO = date(2025, 5, 1)
+_HISTORICO_FIM = date(2026, 7, 31)
+_RATE_LIMIT_SLEEP = 5
+
+_DEFAULT_ARGS = {
+    "owner": "lenon",
+    "depends_on_past": False,
+    "retries": 1,
+    "retry_delay": timedelta(minutes=5),
+    "email_on_failure": False,
+    "email_on_retry": False,
+}
+
+
+def _get_owner_ids() -> list[str]:
+    connection = connect_db()
+    try:
+        with connection.cursor() as cur:
+            cur.execute("SELECT DISTINCT owner_id FROM owners WHERE owner_id IS NOT NULL")
+            return [row[0] for row in cur.fetchall()]
+    finally:
+        connection.close()
+
+
+def _run_finance_mes(data_inicial: str, data_final: str) -> None:
+    conn = StaysConnection()
+    extractor = StaysExtract(conn)
+    transformer = FinanceTransform()
+
+    owner_ids = _get_owner_ids()
+
+    dfs_mes = []
+    for owner_id in owner_ids:
+        raw = extractor.extract_finance(data_inicial, data_final, owner_id)
+        df = transformer.transform_finance(raw)
+
+        if not df.empty:
+            dfs_mes.append(df)
+
+        time.sleep(_RATE_LIMIT_SLEEP)
+
+    if not dfs_mes:
+        return
+
+    process_finance(pd.concat(dfs_mes, ignore_index=True))
+
+
+def _gerar_meses(inicio: date, fim: date):
+    cursor = inicio.replace(day=1)
+    while cursor <= fim:
+        ultimo_dia = calendar.monthrange(cursor.year, cursor.month)[1]
+        data_final = min(date(cursor.year, cursor.month, ultimo_dia), fim)
+        yield cursor.strftime("%Y-%m-%d"), data_final.strftime("%Y-%m-%d"), cursor.strftime("%Y_%m")
+        if cursor.month == 12:
+            cursor = date(cursor.year + 1, 1, 1)
+        else:
+            cursor = date(cursor.year, cursor.month + 1, 1)
+
+
+with DAG(
+    dag_id="lenon_finance_historico",
+    default_args=_DEFAULT_ARGS,
+    description="Backfill histórico de finance mês a mês de 2025-05 a 2026-07, por owner_id — trigger manual",
+    schedule=None,
+    start_date=datetime(2025, 5, 1),
+    catchup=False,
+    tags=["lenon", "finance", "historico"],
+) as dag:
+
+    tasks = []
+
+    for data_ini, data_fim, label in _gerar_meses(_HISTORICO_INICIO, _HISTORICO_FIM):
+        t = PythonOperator(
+            task_id=f"finance_{label}",
+            python_callable=_run_finance_mes,
+            op_kwargs={"data_inicial": data_ini, "data_final": data_fim},
+        )
+        if tasks:
+            tasks[-1] >> t
+        tasks.append(t)

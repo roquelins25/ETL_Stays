@@ -124,4 +124,44 @@ class ReservationsTransform:
         return df
 
 
+class FinanceTransform:
 
+    def transform_finance(self, data: dict) -> pd.DataFrame:
+
+        registros = []
+
+        if isinstance(data, dict):
+            data = [data]
+
+        for proprietario in data:
+
+            id_proprietario = proprietario.get("_id")
+            nome_proprietario = proprietario.get("name")
+
+            for imovel in proprietario.get("listings", []):
+
+                id_imovel = imovel.get("_id")
+                id_ref = imovel.get("id")
+                nome_interno = imovel.get("internalName")
+
+                for lancamento in imovel.get("accounts", []):
+
+                    registros.append({
+                        "id_proprietario": id_proprietario,
+                        "nome_proprietario": nome_proprietario,
+
+                        "id_imovel": id_imovel,
+                        "id_ref": id_ref,
+                        "nome_interno": nome_interno,
+
+                        "id_lancamento": lancamento.get("_id"),
+                        "data": lancamento.get("date"),
+                        "nome_lancamento": lancamento.get("transactionName"),
+                        "valor": lancamento.get("_mcval", {}).get("BRL"),
+                        "tipo": lancamento.get("type"),
+                        "status": lancamento.get("status")
+                    })
+
+        df = pd.DataFrame(registros)
+        
+        return df
