@@ -47,7 +47,7 @@ with DAG(
     default_args=_DEFAULT_ARGS,
     description="Carga incremental de reservations — mês corrente (dia 1 até hoje) por data de criação, a cada 2 horas",
     schedule="0 */2 * * *",
-    start_date=datetime(2024, 1, 1),
+    start_date=datetime(2025, 1, 1),
     catchup=False,
     tags=["lenon", "reservations", "incremental"],
 ) as dag:

@@ -21,12 +21,23 @@ class StaysExtract:
         return df
 
     def extract_owners(self, from_date: str , to_date: str):
-        playload = {
+        payload = {
             "from": from_date,
             "to": to_date
         }    
         
-        response = self.connection.get("finance/owners", params=playload)
+        response = self.connection.get("finance/owners", params=payload)
 
         return response.json()
-# %%
+    
+    def extract_finance(self, from_date: str, to_date: str, _id: str):
+        payload = {
+            "from": from_date,
+            "to": to_date
+        }
+        response = self.connection.get(f"finance/owners/{_id}", params=payload)
+
+        df = response.json()
+
+        return df
+
