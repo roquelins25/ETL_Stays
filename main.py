@@ -7,7 +7,7 @@ from datetime import date, timedelta
 from config.apiconect import StaysConnection
 from src.extract import StaysExtract
 from src.Transform import OwnersTransform, ReservationsTransform, FinanceTransform
-from src.load import process_owners, process_reservations, process_finance
+from src.load import process_owners, process_reservations, process_finance_incremental
 
 logging.basicConfig(
     level=logging.INFO,
@@ -68,7 +68,7 @@ def run_finance(data_inicial: str, data_final: str, _id: str) -> None:
         return
     
     logger.info("Carregando %d registros em finance", len(df))
-    process_finance(df)
+    process_finance_incremental(df, data_inicial, data_final)
 
 
 # %%

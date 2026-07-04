@@ -19,7 +19,7 @@ from config.apiconect import StaysConnection
 from config.configDB import conn as connect_db
 from src.extract import StaysExtract
 from src.Transform import FinanceTransform
-from src.load import process_finance
+from src.load import process_finance_incremental
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +75,7 @@ def _run_finance_mes(data_inicial: str, data_final: str) -> None:
 
     df_final = pd.concat(dfs_mes, ignore_index=True)
     logger.info("[%s -> %s] carregando %d registros de %d owners", data_inicial, data_final, len(df_final), len(dfs_mes))
-    process_finance(df_final)
+    process_finance_incremental(df_final, data_inicial, data_final)
 
 
 def _gerar_meses(inicio: date, fim: date):

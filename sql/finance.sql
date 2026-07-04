@@ -9,5 +9,8 @@ CREATE TABLE IF NOT EXISTS finance (
     nome_lancamento     VARCHAR(100),
     valor               DECIMAL(10, 2),
     tipo                VARCHAR(10),
-    status              VARCHAR(20)
-)
+    status              VARCHAR(20),
+    periodo_referencia  DATE
+);
+
+ALTER TABLE finance ADD COLUMN IF NOT EXISTS periodo_referencia DATE;
