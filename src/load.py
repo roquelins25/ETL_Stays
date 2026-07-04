@@ -54,31 +54,16 @@ def _load_reservations(connection, df: pd.DataFrame, table: str, date_column: st
         table, deleted, len(df), data_min, data_max, date_column,
     )
 
-def _load_finance(connection, df: pd.DataFrame, table: str) -> None:
-    cols = df.columns.tolist()
-    cols_str = ", ".join(cols)
-    copy_sql = f"COPY {table} ({cols_str}) FROM STDIN WITH (FORMAT CSV, NULL '')"
-
-    datas_min = pd.to_datetime(df['data']).min().date()
-    datas_max = pd.to_datetime(df['data']).max().date()
-
-    delete_sql = f"DELETE FROM {table} WHERE data BETWEEN %s AND %s"
-    with connection.cursor() as cur:
-        cur.execute(delete_sql, (datas_min, datas_max))
-        deleted = cur.rowcount
-        cur.copy_expert(copy_sql, _copy_to_buffer(df))
-
-    connection.commit()
-    logger.info("%s: %d deletados, %d inseridos (período %s → %s, coluna %s)", table, deleted, len(df), datas_min, datas_max, "data")
-
 def _load_finance_periodo(connection, df: pd.DataFrame, table: str, data_inicial: str, data_final: str) -> None:
-    delete_sql = f"DELETE FROM {table} WHERE data BETWEEN %s AND %s"
+    delete_sql = f"DELETE FROM {table} WHERE periodo_referencia = %s"
 
     with connection.cursor() as cur:
-        cur.execute(delete_sql, (data_inicial, data_final))
+        cur.execute(delete_sql, (data_inicial,))
         deleted = cur.rowcount
 
         if not df.empty:
+            df = df.copy()
+            df["periodo_referencia"] = data_inicial
             cols = df.columns.tolist()
             cols_str = ", ".join(cols)
             copy_sql = f"COPY {table} ({cols_str}) FROM STDIN WITH (FORMAT CSV, NULL '')"
@@ -86,8 +71,8 @@ def _load_finance_periodo(connection, df: pd.DataFrame, table: str, data_inicial
 
     connection.commit()
     logger.info(
-        "%s: %d deletados, %d inseridos (período %s → %s, coluna %s)",
-        table, deleted, len(df), data_inicial, data_final, "data",
+        "%s: %d deletados, %d inseridos (periodo_referencia %s, intervalo original %s → %s)",
+        table, deleted, len(df), data_inicial, data_inicial, data_final,
     )
 
 
@@ -139,20 +124,6 @@ def process_owners(df: pd.DataFrame) -> None:
         raise
     finally:
         connection.close()
-
-def process_finance(df: pd.DataFrame) -> None:
-    table = "finance"
-    connection = connect_db()
-    try:
-        create_table_if_not_exists(connection, table)
-        _load_finance(connection, df, table)
-    except Exception:
-        connection.rollback()
-        logger.exception("Falha ao processar %s", table)
-        raise
-    finally:
-        connection.close()
-
 
 def process_finance_incremental(df: pd.DataFrame, data_inicial: str, data_final: str) -> None:
     table = "finance"
