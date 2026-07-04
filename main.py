@@ -3,10 +3,11 @@ import logging
 import time
 from datetime import date, timedelta
 
+
 from config.apiconect import StaysConnection
 from src.extract import StaysExtract
-from src.Transform import OwnersTransform, ReservationsTransform
-from src.load import process_owners, process_reservations
+from src.Transform import OwnersTransform, ReservationsTransform, FinanceTransform
+from src.load import process_owners, process_reservations, process_finance
 
 logging.basicConfig(
     level=logging.INFO,
@@ -51,6 +52,26 @@ def run_reservations(data_inicial: str, data_final: str, date_type: str = "creat
     process_reservations(df, date_column="data_de_criacao")
 
 # %%
+# %%
+def run_finance(data_inicial: str, data_final: str, _id: str) -> None:
+    conn = StaysConnection()
+    extractor = StaysExtract(conn)
+
+    logger.info("Extraindo finance de %s a %s", data_inicial, data_final)
+    raw = extractor.extract_finance(data_inicial, data_final, _id)
+
+    transformer = FinanceTransform()
+    df = transformer.transform_finance(raw)
+
+    if df.empty:
+        logger.warning("Nenhum registro após transformação — nada a carregar")
+        return
+    
+    logger.info("Carregando %d registros em finance", len(df))
+    process_finance(df)
+
+
+# %%
 def main():
     inicio = time.perf_counter()
 
@@ -80,3 +101,5 @@ def main():
 # %%
 if __name__ == "__main__":
     main()
+
+
