@@ -49,6 +49,7 @@ def run_reservations(data_inicial: str, data_final: str, date_type: str = "creat
         return
 
     logger.info("Carregando %d registros em reservations", len(df))
+    #return df_raw
     process_reservations(df, date_column="data_de_criacao")
 
 # %%
@@ -103,3 +104,20 @@ if __name__ == "__main__":
     main()
 
 
+'''
+# %%
+run = run_reservations('2026-06-01','2026-06-30','creation')
+# %%
+run
+# %%
+filter = run[ run['Reserva'] ==  'TN01J' ]
+
+filter
+# %%
+import pandas as pd
+pd.set_option('display.max_columns', None)
+# %%
+total = run['Preço de venda corrigido'].sum()
+
+total
+# %% '''
