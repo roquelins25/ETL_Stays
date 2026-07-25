@@ -33,25 +33,25 @@ def _copy_to_buffer(df: pd.DataFrame) -> StringIO:
     return buffer
 
 
-def _load_reservations(connection, df: pd.DataFrame, table: str, date_column: str) -> None:
+def _load_reservations(
+    connection, df: pd.DataFrame, table: str, date_column: str,
+    data_inicial: str, data_final: str,
+) -> None:
     cols = df.columns.tolist()
     cols_str = ", ".join(cols)
     copy_sql = f"COPY {table} ({cols_str}) FROM STDIN WITH (FORMAT CSV, NULL '')"
 
-    data_min = pd.to_datetime(df[date_column]).min().date()
-    data_max = pd.to_datetime(df[date_column]).max().date()
-
     delete_sql = f"DELETE FROM {table} WHERE {date_column} BETWEEN %s AND %s"
 
     with connection.cursor() as cur:
-        cur.execute(delete_sql, (data_min, data_max))
+        cur.execute(delete_sql, (data_inicial, data_final))
         deleted = cur.rowcount
         cur.copy_expert(copy_sql, _copy_to_buffer(df))
 
     connection.commit()
     logger.info(
         "%s: %d deletados, %d inseridos (período %s → %s, coluna %s)",
-        table, deleted, len(df), data_min, data_max, date_column,
+        table, deleted, len(df), data_inicial, data_final, date_column,
     )
 
 def _load_finance_periodo(connection, df: pd.DataFrame, table: str, data_inicial: str, data_final: str) -> None:
@@ -98,12 +98,15 @@ def _insert_owners(connection, df: pd.DataFrame, table: str) -> None:
     logger.info("%s: %d novos inseridos, %d já existiam", table, inserted, len(df) - inserted)
 
 
-def process_reservations(df: pd.DataFrame, date_column: str = "data_de_criacao") -> None:
+def process_reservations(
+    df: pd.DataFrame, data_inicial: str, data_final: str,
+    date_column: str = "data_de_criacao",
+) -> None:
     table = "reservations"
     connection = connect_db()
     try:
         create_table_if_not_exists(connection, table)
-        _load_reservations(connection, df, table, date_column)
+        _load_reservations(connection, df, table, date_column, data_inicial, data_final)
     except Exception:
         connection.rollback()
         logger.exception("Falha ao processar %s", table)
