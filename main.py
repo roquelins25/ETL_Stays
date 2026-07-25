@@ -50,7 +50,7 @@ def run_reservations(data_inicial: str, data_final: str, date_type: str = "creat
 
     logger.info("Carregando %d registros em reservations", len(df))
     #return df_raw
-    process_reservations(df, date_column="data_de_criacao")
+    process_reservations(df, data_inicial, data_final, date_column="data_de_criacao")
 
 # %%
 # %%
