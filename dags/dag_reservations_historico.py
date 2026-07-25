@@ -1,3 +1,4 @@
+import logging
 import sys
 import time
 from pathlib import Path
@@ -17,6 +18,8 @@ from src.extract import StaysExtract
 from src.Transform import ReservationsTransform
 from src.load import process_reservations
 
+logger = logging.getLogger(__name__)
+
 _HISTORICO_INICIO = date(2024, 1, 1)
 _RATE_LIMIT_SLEEP = 15
 
@@ -31,16 +34,33 @@ _DEFAULT_ARGS = {
 
 
 def _run_reservations_mes(data_inicial: str, data_final: str) -> None:
+    logger.info(
+        "Solicitando reservations (creation) de %s a %s", data_inicial, data_final
+    )
+
     conn = StaysConnection()
     extractor = StaysExtract(conn)
 
     df_raw = extractor.extract_reservations(data_inicial, data_final, date_type="creation")
+    logger.info(
+        "Extração retornou %d linhas brutas para %s a %s",
+        len(df_raw), data_inicial, data_final,
+    )
 
     transformer = ReservationsTransform()
     df = transformer.transform_reservations(df_raw)
+    logger.info(
+        "Após transform: %d linhas (de %d brutas) para %s a %s",
+        len(df), len(df_raw), data_inicial, data_final,
+    )
 
     if not df.empty:
         process_reservations(df, date_column="data_de_criacao")
+    else:
+        logger.warning(
+            "Nenhum registro após transformação para %s a %s — nada a carregar",
+            data_inicial, data_final,
+        )
 
     time.sleep(_RATE_LIMIT_SLEEP)
 

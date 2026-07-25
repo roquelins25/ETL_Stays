@@ -104,11 +104,11 @@ if __name__ == "__main__":
     main()
 
 
-'''
+
 # %%
 run = run_reservations('2026-06-01','2026-06-30','creation')
 # %%
-run
+'''run
 # %%
 filter = run[ run['Reserva'] ==  'TN01J' ]
 

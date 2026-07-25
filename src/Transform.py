@@ -1,7 +1,10 @@
+import logging
 import re
 
 import pandas as pd
 import unidecode
+
+logger = logging.getLogger(__name__)
 
 _MESES_PT = {
     "jan": "01", "fev": "02", "mar": "03", "abr": "04",
@@ -87,9 +90,11 @@ class ReservationsTransform:
     def transform_reservations(self, dataset: pd.DataFrame) -> pd.DataFrame:
 
         if dataset.empty or dataset.dropna(how="all").empty:
+            logger.info("transform_reservations: dataset bruto vazio — nada a transformar")
             return pd.DataFrame()
 
         df = dataset.copy()
+        logger.info("transform_reservations: %d linhas brutas recebidas", len(df))
 
         df.columns = [
             unidecode.unidecode(str(col)).lower().strip()
@@ -100,17 +105,30 @@ class ReservationsTransform:
             c for c in self.COLUNAS_DESEJADAS
             if c in df.columns
         ]
+        colunas_faltando = [c for c in self.COLUNAS_DESEJADAS if c not in df.columns]
+        if colunas_faltando:
+            logger.warning("transform_reservations: colunas ausentes no export: %s", colunas_faltando)
 
         df = df[colunas_existentes]
 
         if "status da reserva" in df.columns:
+            antes = len(df)
             df = df[df["status da reserva"] != "pré-reserva"]
+            logger.info(
+                "transform_reservations: filtro status != pré-reserva removeu %d linhas (restam %d)",
+                antes - len(df), len(df),
+            )
 
         if "id do anuncio" in df.columns:
+            antes = len(df)
             df = df[
                 df["id do anuncio"].notna() &
                 (df["id do anuncio"].astype(str).str.strip() != "")
             ]
+            logger.info(
+                "transform_reservations: filtro id do anuncio vazio removeu %d linhas (restam %d)",
+                antes - len(df), len(df),
+            )
 
         df = df.reset_index(drop=True)
 
@@ -121,6 +139,7 @@ class ReservationsTransform:
 
         df.columns = [col.replace(" ", "_").replace(":", "") for col in df.columns]
 
+        logger.info("transform_reservations: %d linhas finais após transformação", len(df))
         return df
 
 
