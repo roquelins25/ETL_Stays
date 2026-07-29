@@ -55,7 +55,7 @@ def _run_reservations_mes(data_inicial: str, data_final: str) -> None:
     )
 
     if not df.empty:
-        process_reservations(df, data_inicial, data_final, date_column="data_de_criacao")
+        process_reservations(df, data_inicial, data_final)
     else:
         logger.warning(
             "Nenhum registro após transformação para %s a %s — nada a carregar",

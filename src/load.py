@@ -34,24 +34,26 @@ def _copy_to_buffer(df: pd.DataFrame) -> StringIO:
 
 
 def _load_reservations(
-    connection, df: pd.DataFrame, table: str, date_column: str,
-    data_inicial: str, data_final: str,
+    connection, df: pd.DataFrame, table: str, data_base: str,
 ) -> None:
+    df = df.copy()
+    df["data_base"] = data_base
+
     cols = df.columns.tolist()
     cols_str = ", ".join(cols)
     copy_sql = f"COPY {table} ({cols_str}) FROM STDIN WITH (FORMAT CSV, NULL '')"
 
-    delete_sql = f"DELETE FROM {table} WHERE {date_column} BETWEEN %s AND %s"
+    delete_sql = f"DELETE FROM {table} WHERE data_base = %s"
 
     with connection.cursor() as cur:
-        cur.execute(delete_sql, (data_inicial, data_final))
+        cur.execute(delete_sql, (data_base,))
         deleted = cur.rowcount
         cur.copy_expert(copy_sql, _copy_to_buffer(df))
 
     connection.commit()
     logger.info(
-        "%s: %d deletados, %d inseridos (período %s → %s, coluna %s)",
-        table, deleted, len(df), data_inicial, data_final, date_column,
+        "%s: %d deletados, %d inseridos (data_base %s)",
+        table, deleted, len(df), data_base,
     )
 
 def _load_finance_periodo(connection, df: pd.DataFrame, table: str, data_inicial: str, data_final: str) -> None:
@@ -100,13 +102,13 @@ def _insert_owners(connection, df: pd.DataFrame, table: str) -> None:
 
 def process_reservations(
     df: pd.DataFrame, data_inicial: str, data_final: str,
-    date_column: str = "data_de_criacao",
 ) -> None:
     table = "reservations"
+    data_base = pd.to_datetime(data_inicial).strftime("%Y%m")
     connection = connect_db()
     try:
         create_table_if_not_exists(connection, table)
-        _load_reservations(connection, df, table, date_column, data_inicial, data_final)
+        _load_reservations(connection, df, table, data_base)
     except Exception:
         connection.rollback()
         logger.exception("Falha ao processar %s", table)

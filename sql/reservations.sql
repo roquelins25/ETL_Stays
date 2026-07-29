@@ -1,4 +1,5 @@
 CREATE TABLE IF NOT EXISTS reservations (
+    data_base                           VARCHAR(10),
     mes                                 VARCHAR(10),
     chegada                             DATE,
     data_de_checkout                    DATE,
