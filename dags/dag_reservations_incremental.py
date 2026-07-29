@@ -39,7 +39,7 @@ def _run_reservations_incremental() -> None:
     df = transformer.transform_reservations(df_raw)
 
     if not df.empty:
-        process_reservations(df, data_inicial, data_final, date_column="data_de_criacao")
+        process_reservations(df, data_inicial, data_final)
 
 
 with DAG(
